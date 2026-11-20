@@ -1,6 +1,6 @@
 {
   "name": "@bismawy/pi-decision-eye",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Multi-provider decision guard. Three-stage protection. Built for Pi. Blocks destructive bash/PowerShell commands and secrets offline, verifies test results on tool_result, gates diffs across 14 decision model providers, and tracks active-only spend in /decision usage.",
   "keywords": [
