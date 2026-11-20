@@ -1,6 +1,10 @@
-# @bismawy/pi-decision-eye
+# Decision Eye
 
-Multi-provider decision guard and review extension for [Pi](https://pi.dev).
+Multi-provider decision guard. Three-stage protection. Built for Pi.
+
+[![Custom badge](https://shieldcn.dev/badge/pi-%20Packages.svg?variant=outline&size=xs&logo=ri%3APiPiBold)](https://pi.dev/packages/@bismawy/pi-decision-eye)
+[![badge](https://shieldcn.dev/npm/@bismawy/pi-decision-eye.svg?variant=outline&size=xs)](https://www.npmjs.com/package/@bismawy/pi-decision-eye)
+[![license](https://shieldcn.dev/github/bismawy/pi-decision-eye/license.svg?variant=outline&size=xs)](https://github.com/bismawy/pi-decision-eye)
 
 `pi-decision-eye` runs three stages of checks on coding-agent turns. Stage 1 blocks destructive shell commands and leaked secrets offline. Stage 2 checks `tool_result` outcomes before letting the agent claim a fix is done. Stage 3 evaluates risky code diffs through a fast decision model API and tracks spend only for providers you actually use.
 
