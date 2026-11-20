@@ -153,17 +153,17 @@ export const session: SessionState = createSessionState();
 // --- Glyph tiers -----------------------------------------------------------------------------------
 // Nerd Font codepoints and emoji are not in every terminal font: a PUA glyph falls back to another
 // family at a different advance width and breaks the column maths. So the icon is chosen per machine:
-//   PI_DECISION_EYE_ICON=nerd   Nerd Font glyph (\ueb1b)
+//   PI_DECISION_EYE_ICON=nerd   Nerd Font glyph (\uf21b)
 //   PI_DECISION_EYE_ICON=emoji  emoji (👀), two cells
 //   PI_DECISION_EYE_ICON=none   no icon, plain text only
-//   unset / auto               Nerd Font when NERD_FONT/PI_NERD_FONT is exported, else emoji
+//   unset / auto               Nerd Font (\uf21b) by default; emoji when NERD_FONT/PI_NERD_FONT=0|false
 export type IconMode = "nerd" | "emoji" | "none";
 
 export function iconMode(env: NodeJS.ProcessEnv = process.env): IconMode {
   const raw = String(env.PI_DECISION_EYE_ICON ?? "").trim().toLowerCase();
   if (raw === "nerd" || raw === "emoji" || raw === "none") return raw;
   const nerd = String(env.NERD_FONT ?? env.PI_NERD_FONT ?? "").trim().toLowerCase();
-  return nerd && nerd !== "0" && nerd !== "false" ? "nerd" : "emoji";
+  return nerd === "0" || nerd === "false" ? "emoji" : "nerd";
 }
 
 export interface Glyphs {
@@ -180,22 +180,46 @@ export interface Glyphs {
 
 /** Rich glyphs (current look) for fonts that carry them; plain ASCII when the terminal cannot. */
 export function glyphs(mode: IconMode = iconMode()): Glyphs {
-  const eye = mode === "nerd" ? "\ueb1b " : mode === "emoji" ? "\u{1F440} " : "";
+  const eye = mode === "nerd" ? "\uf21b " : mode === "emoji" ? "\u{1F440} " : "";
   if (mode === "none") {
     return { eye, ok: "+", fail: "x", open: "v", closed: ">", barFull: "#", barEmpty: ".", on: "*", off: "-" };
   }
   return { eye, ok: "✓", fail: "✕", open: "▾", closed: "▸", barFull: "█", barEmpty: "░", on: "●", off: "○" };
 }
 
+function paintToken(ui: any, token: string, text: string, fallback = "accent"): string {
+  const fg = typeof ui?.theme?.fg === "function" ? ui.theme.fg.bind(ui.theme) : null;
+  if (!fg) return text;
+  try {
+    return fg(token, text);
+  } catch {
+    try {
+      return fg(fallback, text);
+    } catch {
+      return text;
+    }
+  }
+}
+
 export function syncStatus(ctx: any, preset: GuardPreset, activeBackendName?: string): void {
   try {
     const ui = ctx?.ui;
     if (typeof ui?.setStatus !== "function") return;
-    const g = glyphs();
-    const dot = preset === "off" ? g.off : g.on;
+    const mode = iconMode();
+    const g = glyphs(mode);
+    const eye = mode === "nerd" ? paintToken(ui, "accent", g.eye) : g.eye;
+    const rawDot = preset === "off" ? g.off : g.on;
+    const dot =
+      preset === "off"
+        ? paintToken(ui, "dim", rawDot, "muted")
+        : preset === "strict"
+          ? paintToken(ui, "mdHeading", rawDot, "accent")
+          : preset === "light"
+            ? paintToken(ui, "borderAccent", rawDot, "accent")
+            : paintToken(ui, "accent", rawDot);
     const label = PRESETS[preset].label;
-    const suffix = activeBackendName ? ` (${activeBackendName})` : "";
-    ui.setStatus("pi-decision-eye", `${g.eye}Eye: ${dot} ${label}${suffix}`);
+    const suffix = activeBackendName ? paintToken(ui, "dim", ` (${activeBackendName})`, "muted") : "";
+    ui.setStatus("pi-decision-eye", `${eye}Eye: ${dot} ${label}${suffix}`);
   } catch {
     // UI disposed at shutdown
   }

@@ -1,9 +1,9 @@
 // Reviewed-turn trigger (/eye and @eye) and calibrated judgment report contract.
 
-export const EYE_MARKER = "/eye";
+const EYE_MARKER = "/eye";
 
 // Matches /eye as a standalone token (rejects x/eye, /eyeline, /eye/foo, /eye.md; allows trailing punctuation).
-export const EYE_TRIGGER = new RegExp(`(?<![\\w/])${EYE_MARKER}(?![\\w/]|\\.[\\w])`, "i");
+const EYE_TRIGGER = new RegExp(`(?<![\\w/])${EYE_MARKER}(?![\\w/]|\\.[\\w])`, "i");
 const AT_EYE_TRIGGER = /(?<![-\w])@eye(?![\w-])/i;
 
 export const REVIEW_TRIGGER = new RegExp(`${EYE_TRIGGER.source}|${AT_EYE_TRIGGER.source}`, "i");

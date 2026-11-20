@@ -14,7 +14,7 @@ import {
   visibleWidth,
 } from "../extensions/chrome.ts";
 import { REVIEW_TRIGGER } from "../extensions/review.ts";
-import { glyphs, iconMode } from "../extensions/state.ts";
+import { glyphs, iconMode, syncStatus } from "../extensions/state.ts";
 import { readUsageWindow, recordUsage, restoreUsage, trashUsage } from "../extensions/store.ts";
 
 describe("Active-only usage ledger & trash-backed reset/undo", () => {
@@ -52,11 +52,13 @@ describe("Active-only usage ledger & trash-backed reset/undo", () => {
 });
 
 describe("Icon fallback tiers (no Nerd Font required)", () => {
-  it("picks emoji by default and honours PI_DECISION_EYE_ICON / NERD_FONT", () => {
-    assert.equal(iconMode({}), "emoji");
+  it("picks nerd by default and falls back to emoji via PI_DECISION_EYE_ICON or NERD_FONT=0", () => {
+    assert.equal(iconMode({}), "nerd");
     assert.equal(iconMode({ NERD_FONT: "1" }), "nerd");
     assert.equal(iconMode({ PI_NERD_FONT: "JetBrainsMono" }), "nerd");
     assert.equal(iconMode({ NERD_FONT: "0" }), "emoji");
+    assert.equal(iconMode({ PI_NERD_FONT: "false" }), "emoji");
+    assert.equal(iconMode({ PI_DECISION_EYE_ICON: "emoji" }), "emoji");
     assert.equal(iconMode({ PI_DECISION_EYE_ICON: "none", NERD_FONT: "1" }), "none");
     assert.equal(iconMode({ PI_DECISION_EYE_ICON: "NERD" }), "nerd");
   });
@@ -74,7 +76,25 @@ describe("Icon fallback tiers (no Nerd Font required)", () => {
     }
 
     const nerd = glyphs("nerd");
-    assert.equal(nerd.eye.codePointAt(0), 0xeb1b);
+    assert.equal(nerd.eye.codePointAt(0), 0xf21b);
+  });
+
+  it("applies accent/primary/secondary/dim to presets and dim to the active backend suffix in syncStatus", () => {
+    let captured = "";
+    const ctx = {
+      ui: {
+        theme: { fg: (token, text) => `<${token}>${text}</${token}>` },
+        setStatus: (_key, text) => { captured = text; },
+      },
+    };
+    syncStatus(ctx, "balanced", "mercury-decide");
+    assert.equal(captured, "<accent>\uf21b </accent>Eye: <accent>●</accent> BALANCED<dim> (mercury-decide)</dim>");
+    syncStatus(ctx, "strict", "mercury-decide");
+    assert.equal(captured, "<accent>\uf21b </accent>Eye: <mdHeading>●</mdHeading> STRICT<dim> (mercury-decide)</dim>");
+    syncStatus(ctx, "light", "mercury-decide");
+    assert.equal(captured, "<accent>\uf21b </accent>Eye: <borderAccent>●</borderAccent> LIGHT<dim> (mercury-decide)</dim>");
+    syncStatus(ctx, "off", "mercury-decide");
+    assert.equal(captured, "<accent>\uf21b </accent>Eye: <dim>○</dim> OFF<dim> (mercury-decide)</dim>");
   });
 });
 

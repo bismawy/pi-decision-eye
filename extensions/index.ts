@@ -1,4 +1,4 @@
-// @bismawy/pi-decision-eye entry point: Pi hooks, /decision & /eye commands, and portable shortcuts.
+// @bismawy/pi-decision-eye entry point: Pi hooks, /decision command, inline /eye trigger, and portable shortcuts.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
@@ -16,7 +16,7 @@ import {
   shouldRunSemanticGate,
 } from "./guard.ts";
 import { refreshLiveModels, resolveBackendChain } from "./providers.ts";
-import { EYE_MARKER, EYE_TRIGGER, REVIEW_CONTRACT, REVIEW_TRIGGER } from "./review.ts";
+import { REVIEW_CONTRACT, REVIEW_TRIGGER } from "./review.ts";
 import {
   ReviewBoxComponent,
   showGuardScreen,
@@ -206,7 +206,7 @@ export default function (pi: ExtensionAPI) {
       publishStatus(ctx);
       ctx.ui.notify(
         `[pi-decision-eye] Preset: ${PRESETS[next.preset].label} (${PRESETS[next.preset].summary}).`,
-        next.preset === "off" ? "warning" : "info",
+        "info",
       );
     },
   });
@@ -219,12 +219,12 @@ export default function (pi: ExtensionAPI) {
       writeConfig(next);
       ctx.ui.notify(
         `[pi-decision-eye] Folder scope: ${scopeLabel(next.folderScope, ctx.cwd)}.`,
-        next.folderScope.mode === "disabled" ? "warning" : "info",
+        "info",
       );
     },
   });
 
-  // 7. Slash commands: /decision (menu & subcommands) and /eye (reviewed turn trigger).
+  // 7. Slash command: /decision (menu & subcommands). Inline /eye or @eye is handled in before_agent_start.
   pi.registerCommand("decision", {
     description: "Decision Eye menu: guard, providers, models, usage",
     getArgumentCompletions: (prefix: string) => decisionCompletions(prefix),

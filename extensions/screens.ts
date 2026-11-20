@@ -23,7 +23,6 @@ import {
   modelRef,
   modelsForProvider,
   probeBackend,
-  providerById,
   providerShortName,
   resolveBackend,
   resolveBackendChain,
@@ -306,7 +305,7 @@ class ListMenu {
     const lines = [t.fg("accent", t.bold(this.title)), t.fg("muted", this.subtitle), ""];
     for (const [i, row] of this.rows.entries()) {
       const chosen = i === this.index;
-      const prefix = chosen ? t.fg("accent", "→ ") : "  ";
+      const prefix = chosen ? t.fg("accent", "❯ ") : "  ";
       const label = chosen ? this.soft(row.label) : t.fg("text", row.label);
       const pad = " ".repeat(Math.max(0, col - visibleWidth(row.label)));
       const note = row.note ? ` ${t.fg("dim", "·")} ${t.fg("dim", row.note)}` : "";
@@ -385,7 +384,7 @@ class GuardScreen {
       this.done(BACK);
       return;
     }
-    if (matchesKey(data, Key.escape)) this.done(this.back ? BACK : null);
+    if (matchesKey(data, Key.escape)) this.done(null);
   }
 
   render(width: number): string[] {
@@ -410,7 +409,7 @@ class GuardScreen {
 
     const spec = PRESETS[this.config.preset];
     const inScope = folderAllows(this.ctx.cwd, this.config.folderScope);
-    const onOff = (on: boolean) => (on ? t.fg("success", "ON") : t.fg("muted", "OFF"));
+    const onOff = (on: boolean) => (on ? t.fg("accent", "ON") : t.fg("muted", "OFF"));
 
     const controls: [string, string, string][] = [
       ["Preset", t.fg(this.config.preset === "off" ? "warning" : "success", spec.label), spec.summary],
@@ -424,7 +423,7 @@ class GuardScreen {
       ["Stage 3", onOff(this.config.stages.semantic), "diff-aware slop, unfinished & safety decision gate"],
       [
         "Review mode",
-        this.config.reviewAlways ? t.fg("success", "ALL TURNS") : t.fg("muted", "PROMPT"),
+        this.config.reviewAlways ? t.fg("accent", "ALL TURNS") : t.fg("muted", "PROMPT"),
         this.config.reviewAlways ? "contract injected every turn" : "trigger via /eye or @eye",
       ],
     ];
@@ -441,14 +440,14 @@ class GuardScreen {
 
     for (const [i, [label, status, detail]] of controls.entries()) {
       const chosen = i === this.index;
-      const prefix = chosen ? t.fg("accent", "→ ") : "  ";
+      const prefix = chosen ? t.fg("accent", "❯ ") : "  ";
       const styledLabel = chosen ? this.soft(label) : t.fg("text", label);
       const pad = " ".repeat(Math.max(0, ctrlCol - visibleWidth(label)));
       lines.push(`${prefix}${styledLabel}${pad} ${t.fg("dim", "·")} ${status} ${t.fg("dim", "|")} ${t.fg("muted", detail)}`);
     }
 
     lines.push("");
-    const legend = ["[↑↓] Move", "[Space] Cycle", "[Enter] Save", `[Esc] ${this.back ? "Back" : "Cancel"}`];
+    const legend = ["[↑↓] Move", "[Space] Cycle", "[Enter] Save", ...(this.back ? ["[←] Back"] : []), "[Esc] Cancel"];
     for (const pair of packPairs(legend, inner)) lines.push(t.fg("dim", pair));
     return framedRows(lines, width, this.paint);
   }
@@ -565,7 +564,7 @@ class ProvidersScreen {
       return;
     }
     if (matchesKey(data, Key.escape)) {
-      this.done(this.back ? { type: "back" } : { type: "cancel" });
+      this.done({ type: "cancel" });
     }
   }
 
@@ -578,6 +577,7 @@ class ProvidersScreen {
 
     const hasStored = Object.keys(store.providers).length > 0;
     const hasConfigured = PROVIDERS.some((p) => resolveProviderStatus(p, store).configured);
+    const col = Math.max(...PROVIDERS.map((p) => visibleWidth(p.label)));
     const g = glyphs();
 
     const lines: string[] = [
@@ -614,9 +614,10 @@ class ProvidersScreen {
         note = t.fg("dim", `not set · ${p.endpointDisplay}`);
       }
 
-      const prefix = chosen ? t.fg("accent", "→ ") : "  ";
-      const label = chosen ? this.soft(p.label) : status.configured ? t.fg("text", p.label) : t.fg("muted", p.label);
-      lines.push(truncateWidth(`${prefix}${label} ${t.fg("dim", "·")} ${note}`, inner));
+      const prefix = chosen ? t.fg("accent", "❯ ") : "  ";
+      const label = chosen ? this.soft(p.label) : status.configured ? t.fg("accent", p.label) : t.fg("muted", p.label);
+      const pad = " ".repeat(Math.max(0, col - visibleWidth(p.label)));
+      lines.push(truncateWidth(`${prefix}${label}${pad} ${t.fg("dim", "·")} ${note}`, inner));
     }
 
     const below = rows.length - end;
@@ -635,7 +636,8 @@ class ProvidersScreen {
       "[Enter] Login",
       ...(hasConfigured ? [`${keybind(KEY_SETS.test)} Test`] : []),
       ...(hasStored ? [`${keybind(KEY_SETS.remove)} Remove`] : []),
-      `[Esc] ${this.back ? "Back" : "Cancel"}`,
+      ...(this.back ? ["[←] Back"] : []),
+      "[Esc] Cancel",
     ];
     for (const pair of packPairs(legend, inner)) lines.push(t.fg("dim", pair));
     return framedRows(lines, width, this.paint);
@@ -944,7 +946,7 @@ class ModelsScreen {
       this.done(BACK);
       return;
     }
-    if (matchesKey(data, Key.escape)) this.done(this.back ? BACK : null);
+    if (matchesKey(data, Key.escape)) this.done(null);
   }
 
   render(width: number): string[] {
@@ -978,7 +980,7 @@ class ModelsScreen {
     for (let i = start; i < end; i++) {
       const item = rows[i];
       const chosen = i === this.index;
-      const prefix = chosen ? t.fg("accent", "→ ") : "  ";
+      const prefix = chosen ? t.fg("accent", "❯ ") : "  ";
       const label = chosen
         ? this.soft(padColumn(item.model, col))
         : t.fg(item.configured ? "text" : "muted", padColumn(item.model, col));
@@ -1005,7 +1007,8 @@ class ModelsScreen {
       "[Tab] Fallback",
       `${keybind(KEY_SETS.toggleAll)} ${this.showAll ? "Connected" : "All"}`,
       "[Enter] Save",
-      `[Esc] ${this.back ? "Back" : "Cancel"}`,
+      ...(this.back ? ["[←] Back"] : []),
+      "[Esc] Cancel",
     ];
     for (const pair of packPairs(legend, inner)) lines.push(t.fg("dim", pair));
     return framedRows(lines, width, this.paint);
@@ -1097,7 +1100,7 @@ class UsageScreen {
       return;
     }
     if (matchesKey(data, Key.escape)) {
-      this.done(this.back ? BACK : undefined);
+      this.done(undefined);
       return;
     }
     if (this.back && matchesKey(data, Key.left)) {
@@ -1263,7 +1266,8 @@ class UsageScreen {
         ...(summary.total.requests > 0 ? [`${keybind(KEY_SETS.reset)} Reset`] : []),
         ...(session.lastTrash ? [`${keybind(KEY_SETS.undo)} Undo`] : []),
         "[Enter] Done",
-        `[Esc] ${this.back ? "Back" : "Cancel"}`,
+        ...(this.back ? ["[←] Back"] : []),
+        "[Esc] Close",
       ];
       for (const pair of packPairs(legend, inner)) lines.push(t.fg("dim", pair));
     }
@@ -1408,8 +1412,8 @@ export class ReviewBoxComponent {
     return framedRows(rows, width, paint);
   }
 
-  handleMouse(event: { type?: string; button?: string }): { handled: boolean } | undefined {
-    if (event?.type === "click" && event?.button === "left") {
+  handleMouse(event: { type?: string; button?: string; clickCount?: number }): { handled: boolean } | undefined {
+    if (event?.type === "click" && event?.button === "left" && (event.clickCount ?? 1) === 1) {
       this.isExpanded = !this.isExpanded;
       return { handled: true };
     }

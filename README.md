@@ -80,18 +80,17 @@ All 14 built-in providers map onto three wire dialects (`systemone`, `gemini-dec
 | `/decision providers` | Connect, test, or disconnect any of the 14 providers |
 | `/decision models` | Set primary and fallback provider/model pairs |
 | `/decision usage` | View requests, tokens, and estimated cost for active providers (`Today`, `7d`, `30d`, `All`), with trash-backed reset and undo |
-| `/eye [focus]` | Trigger an on-demand review of the current diff or prompt |
 
-You can also mention `/eye` or `@eye` inside a normal message to attach a review instruction without invoking a slash command.
+Mention `/eye` or `@eye` anywhere in a prompt to attach the reviewed-turn contract and align the write gate to your request.
 
 ## Configuration and storage
 
-All state lives under `~/.pi/agent/decision-eye/` (override with `PI_DECISION_EYE_HOME`):
+All state lives under `~/.pi/agent/pi-decision-eye/` (set `PI_DECISION_EYE_HOME` to override the base home directory):
 - `config.json`: preset, stage toggles, primary/fallback references, and custom base URLs.
 - `auth.json`: provider API keys and auto-discovered Cloudflare account IDs (mode `0600`).
 - `usage.json`: per-day, per-provider, per-model request and token counters. Reset moves the file into `trash/` so you can undo it immediately.
 
-Icons follow the terminal's font. `PI_DECISION_EYE_ICON=nerd|emoji|none` picks the tier directly; without it, an exported `NERD_FONT`/`PI_NERD_FONT` selects `nerd` and everything else gets `emoji` (`👀 Eye: ● ON (mercury-decide)`). `none` keeps the status cell plain ASCII.
+Icons default to Nerd Font (`\uf21b`). Set `PI_DECISION_EYE_ICON=nerd|emoji|none` to choose a tier explicitly, or set `NERD_FONT=0` / `PI_NERD_FONT=0` to fall back to emoji (`👀 Eye: ● BALANCED (mercury-decide)`). `none` keeps the status cell plain ASCII.
 
 ## Development
 
