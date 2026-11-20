@@ -31,7 +31,7 @@ import {
   resolveProviderStatus,
 } from "./providers.ts";
 import type { CatalogItem, ProviderSpec } from "./providers.ts";
-import { KEY_SETS, PRESETS, keybind, keycap, nextPreset, session, syncStatus } from "./state.ts";
+import { KEY_SETS, PRESETS, glyphs, keybind, keycap, nextPreset, session, syncStatus } from "./state.ts";
 import {
   applyPreset,
   deleteCredential,
@@ -578,6 +578,7 @@ class ProvidersScreen {
 
     const hasStored = Object.keys(store.providers).length > 0;
     const hasConfigured = PROVIDERS.some((p) => resolveProviderStatus(p, store).configured);
+    const g = glyphs();
 
     const lines: string[] = [
       t.fg("accent", t.bold("Decision Eye · Providers")),
@@ -603,12 +604,12 @@ class ProvidersScreen {
         note = t.fg("warning", `press [${keycap(KEY_SETS.remove)}] again to remove`);
       } else if (status.source === "stored") {
         const latText = lat ? (lat.ok ? ` (${lat.ms}ms)` : " (err)") : "";
-        note = `${t.fg("success", `✓ stored${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
+        note = `${t.fg("success", `${g.ok} stored${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else if (status.source === "env") {
         const latText = lat ? (lat.ok ? ` (${lat.ms}ms)` : " (err)") : "";
-        note = `${t.fg("success", `✓ env${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
+        note = `${t.fg("success", `${g.ok} env${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else if (status.source === "local") {
-        note = `${t.fg("success", "○ ready (0 key)")} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
+        note = `${t.fg("success", `${g.off} ready (0 key)`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else {
         note = t.fg("dim", `not set · ${p.endpointDisplay}`);
       }
@@ -820,7 +821,7 @@ async function testConfiguredProviders(ctx: any): Promise<void> {
     }),
   );
   const summary = results
-    .map(({ provider, probe }) => `${provider.short}: ${probe.ok ? `✓ ${probe.ms}ms` : `✕ ${probe.detail}`}`)
+    .map(({ provider, probe }) => `${provider.short}: ${probe.ok ? `${glyphs().ok} ${probe.ms}ms` : `${glyphs().fail} ${probe.detail}`}`)
     .join(" · ");
   ctx.ui.notify(`[pi-decision-eye] Probe results — ${summary}`, results.every((r) => r.probe.ok) ? "info" : "warning");
 }
@@ -950,6 +951,7 @@ class ModelsScreen {
     const t = this.theme;
     const inner = Math.max(10, width - 4);
     const rows = this.visibleRows();
+    const g = glyphs();
     if (this.index >= rows.length) this.index = Math.max(0, rows.length - 1);
 
     const slotLabel = (ref: string, token: string) => {
@@ -983,9 +985,9 @@ class ModelsScreen {
 
       const role =
         this.primary === item.ref
-          ? t.fg("accent", "✓ primary ")
+          ? t.fg("accent", `${g.ok} primary `)
           : this.fallback === item.ref
-            ? t.fg("warning", "✓ fallback")
+            ? t.fg("warning", `${g.ok} fallback`)
             : t.fg("dim", "—         ");
       const keyBadge = item.configured ? "" : ` ${t.fg("warning", "no key")}`;
       const price = item.priceTag ? ` ${t.fg("dim", item.priceTag)}` : "";
@@ -1149,6 +1151,7 @@ class UsageScreen {
     const t = this.theme;
     const inner = Math.max(20, width - 4);
     const summary = readUsageWindow(this.currentWindow());
+    const g = glyphs();
     const providers = summary.providers;
     if (this.cursor >= providers.length) this.cursor = Math.max(0, providers.length - 1);
 
@@ -1203,7 +1206,7 @@ class UsageScreen {
         const row = providers[i];
         const chosen = i === this.cursor;
         const isOpen = this.expanded.has(row.providerId);
-        const marker = isOpen ? "▾" : "▸";
+        const marker = isOpen ? g.open : g.closed;
         const name = `${marker} ${providerShortName(row.providerId)}`;
         lines.push(formatRow(name, row.totals, chosen ? "soft" : "text"));
 
@@ -1241,7 +1244,7 @@ class UsageScreen {
       const over = budget.overageUsd > 0 ? t.fg("warning", `over ${formatUsd(budget.overageUsd)}`) : t.fg("success", "free-tier");
       lines.push(
         `${t.fg("dim", "Clef   ")} ${t.fg("dim", "·")} ` +
-          `${t.fg(budget.overageUsd > 0 ? "warning" : "success", "█".repeat(filled))}${t.fg("dim", "░".repeat(barW - filled))} ` +
+          `${t.fg(budget.overageUsd > 0 ? "warning" : "success", g.barFull.repeat(filled))}${t.fg("dim", g.barEmpty.repeat(barW - filled))} ` +
           `${t.fg("text", `${num(Math.round(budget.used))}/${num(budget.free)}`)} ${t.fg("dim", "·")} ${over} ${t.fg("dim", "· 00:00 UTC")}`,
       );
     }

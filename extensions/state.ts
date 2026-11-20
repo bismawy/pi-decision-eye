@@ -150,14 +150,52 @@ export function createSessionState(): SessionState {
 
 export const session: SessionState = createSessionState();
 
+// --- Glyph tiers -----------------------------------------------------------------------------------
+// Nerd Font codepoints and emoji are not in every terminal font: a PUA glyph falls back to another
+// family at a different advance width and breaks the column maths. So the icon is chosen per machine:
+//   PI_DECISION_EYE_ICON=nerd   Nerd Font glyph (\ueb1b)
+//   PI_DECISION_EYE_ICON=emoji  emoji (👀), two cells
+//   PI_DECISION_EYE_ICON=none   no icon, plain text only
+//   unset / auto               Nerd Font when NERD_FONT/PI_NERD_FONT is exported, else emoji
+export type IconMode = "nerd" | "emoji" | "none";
+
+export function iconMode(env: NodeJS.ProcessEnv = process.env): IconMode {
+  const raw = String(env.PI_DECISION_EYE_ICON ?? "").trim().toLowerCase();
+  if (raw === "nerd" || raw === "emoji" || raw === "none") return raw;
+  const nerd = String(env.NERD_FONT ?? env.PI_NERD_FONT ?? "").trim().toLowerCase();
+  return nerd && nerd !== "0" && nerd !== "false" ? "nerd" : "emoji";
+}
+
+export interface Glyphs {
+  eye: string;
+  ok: string;
+  fail: string;
+  open: string;
+  closed: string;
+  barFull: string;
+  barEmpty: string;
+  on: string;
+  off: string;
+}
+
+/** Rich glyphs (current look) for fonts that carry them; plain ASCII when the terminal cannot. */
+export function glyphs(mode: IconMode = iconMode()): Glyphs {
+  const eye = mode === "nerd" ? "\ueb1b " : mode === "emoji" ? "\u{1F440} " : "";
+  if (mode === "none") {
+    return { eye, ok: "+", fail: "x", open: "v", closed: ">", barFull: "#", barEmpty: ".", on: "*", off: "-" };
+  }
+  return { eye, ok: "✓", fail: "✕", open: "▾", closed: "▸", barFull: "█", barEmpty: "░", on: "●", off: "○" };
+}
+
 export function syncStatus(ctx: any, preset: GuardPreset, activeBackendName?: string): void {
   try {
     const ui = ctx?.ui;
     if (typeof ui?.setStatus !== "function") return;
-    const dot = preset === "off" ? "○" : "●";
+    const g = glyphs();
+    const dot = preset === "off" ? g.off : g.on;
     const label = PRESETS[preset].label;
     const suffix = activeBackendName ? ` (${activeBackendName})` : "";
-    ui.setStatus("pi-decision-eye", `Eye: ${dot} ${label}${suffix}`);
+    ui.setStatus("pi-decision-eye", `${g.eye}Eye: ${dot} ${label}${suffix}`);
   } catch {
     // UI disposed at shutdown
   }

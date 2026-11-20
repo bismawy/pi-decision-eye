@@ -6,6 +6,9 @@
 - Forwarded `focused` state to `TextPromptScreen` and `SecretInput` with `> ` prompt and `dim` placeholder so API key input renders its cursor cleanly.
 - Aligned `[show]` / `[hide]` fold hints right-aligned on the `ReviewBoxComponent` title row and aligned `UsageScreen` table columns with the header.
 
+### Added
+- Icon fallback tiers via `PI_DECISION_EYE_ICON=nerd|emoji|none` (default `emoji`), so the status cell and screen glyphs stay inside a plain monospace font without Nerd Fonts.
+
 ## [0.1.0] - 2026-11-20
 
 ### Added

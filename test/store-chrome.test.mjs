@@ -14,6 +14,7 @@ import {
   visibleWidth,
 } from "../extensions/chrome.ts";
 import { REVIEW_TRIGGER } from "../extensions/review.ts";
+import { glyphs, iconMode } from "../extensions/state.ts";
 import { readUsageWindow, recordUsage, restoreUsage, trashUsage } from "../extensions/store.ts";
 
 describe("Active-only usage ledger & trash-backed reset/undo", () => {
@@ -47,6 +48,33 @@ describe("Active-only usage ledger & trash-backed reset/undo", () => {
     assert.equal(readUsageWindow("all", now).providers.length, 0);
     assert.equal(restoreUsage(trashed.trashPath), true);
     assert.equal(readUsageWindow("all", now).providers.length, 2);
+  });
+});
+
+describe("Icon fallback tiers (no Nerd Font required)", () => {
+  it("picks emoji by default and honours PI_DECISION_EYE_ICON / NERD_FONT", () => {
+    assert.equal(iconMode({}), "emoji");
+    assert.equal(iconMode({ NERD_FONT: "1" }), "nerd");
+    assert.equal(iconMode({ PI_NERD_FONT: "JetBrainsMono" }), "nerd");
+    assert.equal(iconMode({ NERD_FONT: "0" }), "emoji");
+    assert.equal(iconMode({ PI_DECISION_EYE_ICON: "none", NERD_FONT: "1" }), "none");
+    assert.equal(iconMode({ PI_DECISION_EYE_ICON: "NERD" }), "nerd");
+  });
+
+  it("keeps every glyph tier inside a plain monospace font and a two-cell emoji", () => {
+    const emoji = glyphs("emoji");
+    assert.equal(emoji.eye, "\u{1F440} ");
+    assert.equal(visibleWidth(emoji.eye), 3); // one two-cell glyph plus the separating space
+    assert.equal(`${emoji.eye}Eye: ${emoji.on} BALANCED (d1.2)`, "\u{1F440} Eye: ● BALANCED (d1.2)");
+
+    const plain = glyphs("none");
+    assert.equal(plain.eye, "");
+    for (const value of Object.values(plain)) {
+      assert.equal(/^[\x20-\x7e]*$/.test(value), true, `plain tier must stay ASCII: ${JSON.stringify(value)}`);
+    }
+
+    const nerd = glyphs("nerd");
+    assert.equal(nerd.eye.codePointAt(0), 0xeb1b);
   });
 });
 

@@ -91,6 +91,8 @@ All state lives under `~/.pi/agent/decision-eye/` (override with `PI_DECISION_EY
 - `auth.json`: provider API keys and auto-discovered Cloudflare account IDs (mode `0600`).
 - `usage.json`: per-day, per-provider, per-model request and token counters. Reset moves the file into `trash/` so you can undo it immediately.
 
+Icons follow the terminal's font. `PI_DECISION_EYE_ICON=nerd|emoji|none` picks the tier directly; without it, an exported `NERD_FONT`/`PI_NERD_FONT` selects `nerd` and everything else gets `emoji` (`👀 Eye: ● ON (mercury-decide)`). `none` keeps the status cell plain ASCII.
+
 ## Development
 
 ```bash
