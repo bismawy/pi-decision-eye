@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-20
+
 ### Added
 - Icon tiers via `PI_DECISION_EYE_ICON=nerd|emoji|none` (default `nerd` with `\uf21b`; falls back to `emoji` when `NERD_FONT=0` or `PI_NERD_FONT=0`, and plain ASCII with `none`).
 - Theme-aware status dot colors (`BALANCED` `accent`, `STRICT` `mdHeading`, `LIGHT` `borderAccent`, `OFF` `dim`) and `dim` active backend suffix.
