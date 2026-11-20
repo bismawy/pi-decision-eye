@@ -81,6 +81,8 @@ registerHooks({
 
 const { visibleWidth, stripAnsi } = await import("../extensions/chrome.ts");
 const {
+  ReviewBoxComponent,
+  promptText,
   showGuardScreen,
   showModelsScreen,
   showProvidersScreen,
@@ -95,6 +97,8 @@ const ALLOWED_TOKENS = new Set([
   "border",
   "borderAccent",
   "borderMuted",
+  "customMessageLabel",
+  "customMessageText",
   "dim",
   "error",
   "muted",
@@ -190,5 +194,37 @@ await showUsageScreen(makeMockCtx("usage-empty"), true);
 recordUsage("liquid", "d1.2", { requests: 4, ok: 4, inputTokens: 2100, cost: 0.000042 });
 recordUsage("cloudflare", "clef-flash", { requests: 2, ok: 2, inputTokens: 800, cost: 0.00001 });
 await showUsageScreen(makeMockCtx("usage-active", (c) => c.handleInput?.("\t")), true);
+
+// 7. Text prompt screen (secret input focus & cursor forwarding)
+await promptText(
+  makeMockCtx("text-prompt", (c) => {
+    c.focused = true;
+    assert.equal(c.focused, true, "text-prompt: focused getter/setter must forward state");
+    c.handleInput?.("k");
+  }),
+  "Provider API Key",
+  "Paste your API key.",
+  false,
+);
+
+// 8. ReviewBoxComponent (collapsed/expanded widths + single-click vs double-click guard)
+const reviewBox = new ReviewBoxComponent("[pi-decision-eye] Reviewed turn contract.\n- Line 1\n- Line 2", false, mockTheme);
+for (const expanded of [false, true]) {
+  reviewBox.isExpanded = expanded;
+  for (const w of WIDTHS) {
+    const lines = reviewBox.render(w);
+    assert.equal(stripAnsi(lines[0]).startsWith("╭"), true, `review-box@${w}: top border missing`);
+    assert.equal(stripAnsi(lines.at(-1)).startsWith("╰"), true, `review-box@${w}: bottom border missing`);
+    for (const line of lines) {
+      assert.equal(visibleWidth(line), w, `review-box@${w}: expected width ${w}`);
+    }
+  }
+}
+reviewBox.isExpanded = false;
+assert.equal(reviewBox.handleMouse({ type: "click", button: "left", clickCount: 2 }), undefined);
+assert.equal(reviewBox.isExpanded, false, "review-box: double-click must not toggle");
+assert.deepEqual(reviewBox.handleMouse({ type: "click", button: "left", clickCount: 1 }), { handled: true });
+assert.equal(reviewBox.isExpanded, true, "review-box: single-click must toggle");
+screensChecked.push("review-box");
 
 console.log(`render-check passed (${screensChecked.length} screens x ${WIDTHS.length} widths: ${screensChecked.join(", ")})`);
