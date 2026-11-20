@@ -64,6 +64,12 @@ async function openCustom<T>(ctx: any, build: (theme: any, done: (value: T) => v
   return await ctx.ui.custom((tui: any, theme: any, _kb: any, done: (value: T) => void) => {
     const comp = build(theme, done);
     return {
+      get focused() {
+        return Boolean(comp.focused);
+      },
+      set focused(val: boolean) {
+        if ("focused" in comp) comp.focused = val;
+      },
       render: (width: number) => comp.render(width),
       invalidate: () => comp.invalidate?.(),
       handleInput: (data: string) => {
@@ -76,11 +82,21 @@ async function openCustom<T>(ctx: any, build: (theme: any, done: (value: T) => v
 
 /** Single-line masked input preserving the IME caret marker. */
 class SecretInput extends Input {
+  constructor(theme: any, placeholder = "sk-...") {
+    super({
+      prompt: "> ",
+      placeholder,
+      placeholderStyle: (s: string) => theme.fg("dim", s),
+    });
+  }
+
   override render(width: number): string[] {
-    const len = [...this.getValue()].length;
-    const bullets = "•".repeat(Math.min(len, Math.max(0, width - 1)));
+    const val = this.getValue();
+    if (!val) return super.render(width);
+    const len = [...val].length;
+    const bullets = "•".repeat(Math.min(len, Math.max(0, width - 3)));
     const cursor = this.focused ? `${CURSOR_MARKER}\x1b[7m \x1b[27m` : "";
-    return [truncateWidth(bullets + cursor, width, "")];
+    return [truncateWidth(`> ${bullets}${cursor}`, width, "")];
   }
 }
 
@@ -90,7 +106,6 @@ class TextPromptScreen {
   private readonly paint: (t: string) => string;
   private readonly title: string;
   private readonly hint: string;
-  private readonly reveal: boolean;
   isFocused = false;
 
   constructor(
@@ -101,13 +116,19 @@ class TextPromptScreen {
     reveal: boolean,
     done: (value?: string) => void,
     initialValue = "",
+    placeholder = reveal ? "" : "sk-...",
   ) {
     this.theme = theme;
     this.paint = paint;
     this.title = title;
     this.hint = hint;
-    this.reveal = reveal;
-    this.input = reveal ? new Input({ prompt: "" }) : new SecretInput();
+    this.input = reveal
+      ? new Input({
+          prompt: "> ",
+          placeholder,
+          placeholderStyle: (s: string) => theme.fg("dim", s),
+        })
+      : new SecretInput(theme, placeholder);
     if (initialValue) this.input.setValue(initialValue);
     this.input.onSubmit = (val) => done(val);
     this.input.onEscape = () => done(undefined);
@@ -133,8 +154,8 @@ class TextPromptScreen {
   render(width: number): string[] {
     const t = this.theme;
     const inner = Math.max(10, width - 4);
-    const rendered = this.input.render(Math.max(1, inner - 2))[0] ?? "";
-    const field = `${t.fg("accent", "  ")}${this.reveal ? t.fg("text", rendered) : rendered}`;
+    this.input.focused = this.isFocused;
+    const field = this.input.render(Math.max(1, inner))[0] ?? "";
     const lines = [
       t.fg("accent", t.bold(this.title)),
       ...wrapWords(this.hint, inner).map((l) => t.fg("muted", l)),
@@ -153,10 +174,11 @@ export async function promptText(
   hint: string,
   reveal = false,
   initialValue = "",
+  placeholder = reveal ? "" : "sk-...",
 ): Promise<string | undefined> {
   if (ctx.mode !== "tui") return await ctx.ui.input(title, hint);
   return await openCustom<string | undefined>(ctx, (theme, done) =>
-    new TextPromptScreen(theme, borderOf(theme, ctx), title, hint, reveal, done, initialValue)
+    new TextPromptScreen(theme, borderOf(theme, ctx), title, hint, reveal, done, initialValue, placeholder)
   );
 }
 
@@ -556,7 +578,6 @@ class ProvidersScreen {
 
     const hasStored = Object.keys(store.providers).length > 0;
     const hasConfigured = PROVIDERS.some((p) => resolveProviderStatus(p, store).configured);
-    const col = Math.max(...PROVIDERS.map((p) => visibleWidth(p.label)));
 
     const lines: string[] = [
       t.fg("accent", t.bold("Decision Eye · Providers")),
@@ -577,25 +598,24 @@ class ProvidersScreen {
       const lat = session.latencyMs.get(p.id);
       const confirming = chosen && this.pendingRemove === p.id;
 
-      let badge: string;
+      let note: string;
       if (confirming) {
-        badge = t.fg("warning", `press [${keycap(KEY_SETS.remove)}] again to remove`);
+        note = t.fg("warning", `press [${keycap(KEY_SETS.remove)}] again to remove`);
       } else if (status.source === "stored") {
         const latText = lat ? (lat.ok ? ` (${lat.ms}ms)` : " (err)") : "";
-        badge = t.fg("success", `✓ stored${latText}`);
+        note = `${t.fg("success", `✓ stored${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else if (status.source === "env") {
         const latText = lat ? (lat.ok ? ` (${lat.ms}ms)` : " (err)") : "";
-        badge = t.fg("success", `✓ env${latText}`);
+        note = `${t.fg("success", `✓ env${latText}`)} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else if (status.source === "local") {
-        badge = t.fg("success", "○ ready (0 key)");
+        note = `${t.fg("success", "○ ready (0 key)")} ${t.fg("dim", `· ${p.endpointDisplay}`)}`;
       } else {
-        badge = t.fg("dim", "- not set");
+        note = t.fg("dim", `not set · ${p.endpointDisplay}`);
       }
 
       const prefix = chosen ? t.fg("accent", "→ ") : "  ";
       const label = chosen ? this.soft(p.label) : status.configured ? t.fg("text", p.label) : t.fg("muted", p.label);
-      const pad = " ".repeat(Math.max(0, col - visibleWidth(p.label)));
-      lines.push(`${prefix}${label}${pad} ${t.fg("dim", "·")} ${padColumn(badge, 18)} ${t.fg("dim", "·")} ${t.fg("dim", p.endpointDisplay)}`);
+      lines.push(truncateWidth(`${prefix}${label} ${t.fg("dim", "·")} ${note}`, inner));
     }
 
     const below = rows.length - end;
@@ -1184,14 +1204,13 @@ class UsageScreen {
         const chosen = i === this.cursor;
         const isOpen = this.expanded.has(row.providerId);
         const marker = isOpen ? "▾" : "▸";
-        const prefix = chosen ? t.fg("accent", "→ ") : "  ";
         const name = `${marker} ${providerShortName(row.providerId)}`;
-        lines.push(`${prefix}${formatRow(name, row.totals, chosen ? "soft" : "text")}`);
+        lines.push(formatRow(name, row.totals, chosen ? "soft" : "text"));
 
         if (isOpen) {
           // Active-only models: strictly models with requests > 0
           for (const m of row.models) {
-            lines.push(`  ${formatRow(`  ${m.modelId}`, m.totals, "muted")}`);
+            lines.push(formatRow(`   ${m.modelId}`, m.totals, "muted"));
           }
         }
       }
@@ -1200,7 +1219,7 @@ class UsageScreen {
       if (below > 0) lines.push(t.fg("dim", `↓ ${below} more`));
 
       lines.push("");
-      lines.push(`  ${formatRow("Total", summary.total, "text")}`);
+      lines.push(formatRow("Total", summary.total, "text"));
     }
 
     // Session stats line
@@ -1333,5 +1352,68 @@ export async function showRootMenu(ctx: any): Promise<void> {
     else outcome = await showUsageScreen(ctx, true);
 
     if (outcome !== BACK) return;
+  }
+}
+
+export class ReviewBoxComponent {
+  private readonly text: string;
+  private readonly theme: any;
+  public isExpanded: boolean;
+
+  constructor(text: string, isExpanded: boolean, theme: any) {
+    this.text = text;
+    this.isExpanded = isExpanded;
+    this.theme = theme;
+  }
+
+  render(width: number): string[] {
+    const t = this.theme;
+    const fg = (color: string, s: string) => (t?.fg ? t.fg(color, s) : s);
+    const paint = (s: string) => fg("borderMuted", s);
+    const inner = Math.max(10, width - 4);
+    const tag = fg("customMessageLabel", "\x1b[1m[pi-decision-eye]\x1b[22m");
+    const rightAlignHint = (left: string, hintText: string): string => {
+      const hint = fg("dim", hintText);
+      const hintWidth = visibleWidth(hint);
+      if (inner <= hintWidth + 2) return truncateWidth(`${left} ${hint}`, inner, "");
+      const leftTrunc = truncateWidth(left, inner - hintWidth - 1);
+      const gap = Math.max(1, inner - visibleWidth(leftTrunc) - hintWidth);
+      return `${leftTrunc}${" ".repeat(gap)}${hint}`;
+    };
+
+    if (!this.isExpanded) {
+      const title = `${tag} ${fg("customMessageText", "Reviewed turn contract.")}`;
+      return framedRows([rightAlignHint(title, "[show]")], width, paint);
+    }
+
+    const rows: string[] = [];
+    for (const rawLine of this.text.split("\n")) {
+      if (rows.length === 0 && rawLine.startsWith("[pi-decision-eye]")) {
+        const rest = rawLine.slice("[pi-decision-eye]".length).trim();
+        const title = `${tag} ${fg("customMessageText", rest)}`;
+        rows.push(rightAlignHint(title, "[hide]"));
+        continue;
+      }
+      if (!rawLine) {
+        rows.push("");
+        continue;
+      }
+      for (const wrapped of wrapWords(rawLine, inner)) {
+        rows.push(fg("customMessageText", wrapped));
+      }
+    }
+    return framedRows(rows, width, paint);
+  }
+
+  handleMouse(event: { type?: string; button?: string }): { handled: boolean } | undefined {
+    if (event?.type === "click" && event?.button === "left") {
+      this.isExpanded = !this.isExpanded;
+      return { handled: true };
+    }
+    return undefined;
+  }
+
+  invalidate(): void {
+    return;
   }
 }

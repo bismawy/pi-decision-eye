@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- Forwarded `focused` state to `TextPromptScreen` and `SecretInput` with `> ` prompt and `dim` placeholder so API key input renders its cursor cleanly.
+- Aligned `[show]` / `[hide]` fold hints right-aligned on the `ReviewBoxComponent` title row and aligned `UsageScreen` table columns with the header.
+
 ## [0.1.0] - 2026-11-20
 
 ### Added

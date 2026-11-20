@@ -17,7 +17,14 @@ import {
 } from "./guard.ts";
 import { refreshLiveModels, resolveBackendChain } from "./providers.ts";
 import { EYE_MARKER, EYE_TRIGGER, REVIEW_CONTRACT, REVIEW_TRIGGER } from "./review.ts";
-import { showGuardScreen, showModelsScreen, showProvidersScreen, showRootMenu, showUsageScreen } from "./screens.ts";
+import {
+  ReviewBoxComponent,
+  showGuardScreen,
+  showModelsScreen,
+  showProvidersScreen,
+  showRootMenu,
+  showUsageScreen,
+} from "./screens.ts";
 import { KEY_SETS, PRESETS, decisionCompletions, nextPreset, session, syncStatus } from "./state.ts";
 import { applyPreset, folderAllows, nextFolderScope, readConfig, scopeLabel, writeConfig } from "./store.ts";
 
@@ -32,6 +39,16 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event: any, ctx: any) => {
     await refreshLiveModels();
     publishStatus(ctx);
+  });
+
+  pi.registerMessageRenderer("pi-decision-eye-review", (message: any, { expanded }: any, theme: any) => {
+    const content = message?.content;
+    const text = typeof content === "string"
+      ? content
+      : Array.isArray(content)
+        ? content.filter((c: any) => c?.type === "text").map((c: any) => String(c?.text ?? "")).join("\n")
+        : "";
+    return new ReviewBoxComponent(text, Boolean(expanded), theme);
   });
 
   // 2. Prompt start: reset Stage 2 turn tracking and detect /eye or @eye reviewed turn.
@@ -219,19 +236,6 @@ export default function (pi: ExtensionAPI) {
       if (sub === "models") return void (await showModelsScreen(ctx, false));
       if (sub === "usage") return void (await showUsageScreen(ctx, false));
       ctx.ui.notify(`[pi-decision-eye] Unknown subcommand "${sub}". Use: guard | providers | models | usage`, "warning");
-    },
-  });
-
-  pi.registerCommand("eye", {
-    description: "Decision Eye reviewed turn: /eye <task> injects the calibrated report contract",
-    handler: async (args: string, ctx: any) => {
-      const task = String(args ?? "").replace(EYE_TRIGGER, " ").replace(/\s{2,}/g, " ").trim();
-      if (!task) {
-        ctx.ui.notify("[pi-decision-eye] Usage: /eye <task> (or include /eye anywhere inside your prompt).", "warning");
-        return;
-      }
-      ctx.ui.notify("[pi-decision-eye] Reviewed turn triggered via /eye.", "info");
-      pi.sendUserMessage(`${EYE_MARKER} ${task}`);
     },
   });
 }
